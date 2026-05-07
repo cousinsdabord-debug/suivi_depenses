@@ -1,0 +1,753 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<title>Dépenses · Isabelle</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap');
+:root {
+  --bg:#0f0f13;--surface:#1a1a22;--surface2:#22222e;--border:#2e2e3e;
+  --accent:#7c6af7;--accent2:#f7a26a;--green:#5ecb8a;--red:#f76a6a;
+  --blue:#5b9cf7;--text:#f0f0f8;--muted:#6060a0;--r:16px;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);
+  min-height:100dvh;max-width:480px;margin:0 auto;padding-bottom:110px}
+
+/* HEADER */
+.header{padding:20px 20px 12px;background:linear-gradient(160deg,#1a1a2e,#0f0f13);
+  border-bottom:1px solid var(--border);position:sticky;top:0;z-index:100}
+.header-top{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.header h1{font-family:'DM Serif Display',serif;font-size:20px;letter-spacing:-.5px;
+  background:linear-gradient(135deg,var(--accent),var(--accent2));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;white-space:nowrap}
+.month-badge{background:var(--surface2);border:1px solid var(--border);
+  padding:7px 14px;border-radius:20px;font-size:13px;font-weight:500;
+  color:var(--accent);cursor:pointer;white-space:nowrap;flex-shrink:0}
+.month-selector{display:none;flex-wrap:wrap;gap:7px;margin-top:12px}
+.month-selector.open{display:flex}
+.month-btn{padding:6px 11px;border-radius:20px;border:1px solid var(--border);
+  background:var(--surface2);color:var(--muted);font-size:12px;
+  font-family:'DM Sans',sans-serif;cursor:pointer;transition:all .15s}
+.month-btn.active{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
+.month-btn.has-data{color:var(--green);border-color:#2e5e3e}
+.month-btn.active.has-data{background:var(--green);border-color:var(--green);color:#000}
+
+/* SUMMARY */
+.summary{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;padding:12px 20px;
+  border-bottom:1px solid var(--border)}
+.sum-card{background:var(--surface);border-radius:12px;padding:10px 12px;border:1px solid var(--border)}
+.sum-card .lbl{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+.sum-card .amt{font-size:16px;font-weight:600;margin-top:2px}
+.sum-card.f .amt{color:var(--blue)}
+.sum-card.v .amt{color:var(--accent2)}
+.sum-card.t .amt{color:var(--text)}
+
+/* BADGE RECURRING INFO */
+.rec-info{margin:10px 20px 0;padding:10px 14px;background:#1a2a1a;border:1px solid #2e5e3e;
+  border-radius:12px;font-size:12px;color:var(--green);display:flex;align-items:center;gap:8px}
+
+/* TABS */
+.tabs{display:flex;padding:12px 20px 0;border-bottom:1px solid var(--border)}
+.tab{flex:1;text-align:center;padding:10px 4px;font-size:12px;font-weight:500;
+  color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;transition:all .2s}
+.tab.active{color:var(--accent);border-bottom-color:var(--accent)}
+
+.content{padding:0 20px}
+
+/* FORM */
+.add-form{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);
+  padding:18px;margin:14px 0;display:none}
+.add-form.open{display:block}
+.add-form h3{font-family:'DM Serif Display',serif;font-size:17px;margin-bottom:14px}
+.form-group{margin-bottom:12px}
+.form-group label{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.6px;
+  color:var(--muted);margin-bottom:6px;font-weight:500}
+.form-group input,.form-group select{width:100%;background:var(--surface2);
+  border:1px solid var(--border);border-radius:10px;padding:12px 14px;color:var(--text);
+  font-size:16px;font-family:'DM Sans',sans-serif;outline:none;transition:border-color .2s;
+  -webkit-appearance:none}
+.form-group input:focus,.form-group select:focus{border-color:var(--accent)}
+.form-group input[type="number"]{font-size:22px;font-weight:600}
+.cat-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:6px}
+.cat-chip{padding:9px 8px;border-radius:10px;border:1.5px solid var(--border);
+  background:var(--surface2);color:var(--muted);font-size:11px;font-family:'DM Sans',sans-serif;
+  cursor:pointer;text-align:center;transition:all .15s;line-height:1.4}
+.cat-chip:active{transform:scale(.97)}
+.cat-chip.fix-type.selected{background:#2244aa;border-color:#5b9cf7;color:#fff;font-weight:600}
+.cat-chip.var-type.selected{background:#5a3fb5;border-color:var(--accent);color:#fff;font-weight:600}
+.cat-chip.trav-type.selected{background:#8a3a10;border-color:var(--accent2);color:#fff;font-weight:600}
+.btn-add{width:100%;padding:14px;border-radius:12px;border:none;
+  background:linear-gradient(135deg,var(--accent),#9b8fff);color:#fff;
+  font-size:15px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer;
+  margin-top:6px;transition:opacity .2s,transform .1s}
+.btn-add:active{transform:scale(.98);opacity:.9}
+
+/* ENTRIES */
+.section-title{font-size:11px;text-transform:uppercase;letter-spacing:1px;
+  color:var(--muted);font-weight:500;padding:14px 0 8px;display:flex;
+  align-items:center;justify-content:space-between}
+.section-title .badge{background:var(--surface2);border-radius:10px;
+  padding:2px 8px;font-size:11px;color:var(--accent)}
+
+/* Groupe récurrent */
+.rec-group{margin-bottom:6px}
+.rec-group-header{display:flex;align-items:center;gap:8px;padding:8px 12px;
+  background:var(--surface2);border-radius:10px 10px 0 0;border:1px solid var(--border);
+  font-size:11px;color:var(--muted);cursor:pointer;user-select:none}
+.rec-group-header.collapsed{border-radius:10px}
+.rec-group-body{border:1px solid var(--border);border-top:none;border-radius:0 0 10px 10px;overflow:hidden}
+.rec-label{flex:1;font-weight:500;font-size:12px;color:var(--text)}
+.rec-total{font-size:13px;font-weight:700;color:var(--blue)}
+.chevron{transition:transform .2s;font-size:12px;color:var(--muted)}
+.chevron.open{transform:rotate(180deg)}
+
+.entry-item{display:flex;align-items:center;gap:11px;padding:12px 14px;
+  background:var(--surface);border-bottom:1px solid var(--border)}
+.entry-item:last-child{border-bottom:none}
+.entry-icon{width:36px;height:36px;border-radius:9px;display:flex;align-items:center;
+  justify-content:center;font-size:16px;flex-shrink:0}
+.entry-info{flex:1;min-width:0}
+.entry-label{font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.entry-cat{font-size:11px;color:var(--muted);margin-top:1px}
+.entry-amount{font-size:16px;font-weight:700;flex-shrink:0}
+.entry-amount.f{color:var(--blue)}.entry-amount.v{color:var(--accent2)}.entry-amount.tr{color:var(--red)}
+.btn-del{width:26px;height:26px;border-radius:7px;border:none;background:var(--surface2);
+  color:var(--muted);font-size:13px;cursor:pointer;flex-shrink:0;display:flex;
+  align-items:center;justify-content:center}
+.rec-badge{font-size:9px;background:#1a2a1a;color:var(--green);
+  border-radius:6px;padding:1px 5px;margin-left:4px;font-weight:500}
+
+.standalone-entries{background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden}
+
+.empty-state{text-align:center;padding:36px 20px;color:var(--muted)}
+.empty-state .icon{font-size:38px;margin-bottom:10px}
+.empty-state p{font-size:13px;line-height:1.6}
+
+/* EXPORT */
+.export-section{padding-top:14px}
+.export-card{background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--r);padding:18px;margin-bottom:14px}
+.export-card h3{font-family:'DM Serif Display',serif;font-size:18px;margin-bottom:6px}
+.export-card p{font-size:13px;color:var(--muted);line-height:1.6;margin-bottom:16px}
+.btn-export{width:100%;padding:15px;border-radius:12px;border:none;
+  background:linear-gradient(135deg,#2ecc71,#27ae60);color:#fff;font-size:15px;
+  font-weight:700;font-family:'DM Sans',sans-serif;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;gap:10px;transition:opacity .2s}
+.btn-export:active{opacity:.85}
+.preview-row{display:flex;justify-content:space-between;align-items:center;
+  padding:10px 14px;border-bottom:1px solid var(--border);font-size:13px}
+.preview-row:last-child{border-bottom:none}
+.preview-row .lbl{color:var(--muted)}
+.preview-row .val{font-weight:600}
+
+/* RÉCURRENTS TAB */
+.rec-tab-card{background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--r);margin-top:14px;overflow:hidden}
+.rec-tab-header{padding:14px 16px;background:var(--surface2);border-bottom:1px solid var(--border)}
+.rec-tab-header h3{font-family:'DM Serif Display',serif;font-size:16px;margin-bottom:2px}
+.rec-tab-header p{font-size:11px;color:var(--muted)}
+.rec-row{display:flex;align-items:center;gap:12px;padding:12px 16px;
+  border-bottom:1px solid var(--border)}
+.rec-row:last-child{border-bottom:none}
+.rec-row-icon{font-size:18px;width:32px;text-align:center;flex-shrink:0}
+.rec-row-info{flex:1;min-width:0}
+.rec-row-name{font-size:13px;font-weight:500}
+.rec-row-detail{font-size:11px;color:var(--muted);margin-top:1px}
+.rec-row-amount{font-size:15px;font-weight:700;color:var(--blue);flex-shrink:0}
+.rec-row-amount.var{color:var(--accent2)}
+.freq-badge{display:inline-block;font-size:9px;padding:1px 6px;border-radius:6px;
+  font-weight:600;margin-left:6px;vertical-align:middle}
+.freq-badge.monthly{background:#1a2f1a;color:var(--green)}
+.freq-badge.bimonthly{background:#2a2a10;color:#ffd700}
+.freq-badge.annual{background:#2a1a1a;color:var(--red)}
+
+/* FAB */
+.fab{position:fixed;bottom:24px;right:20px;width:56px;height:56px;border-radius:50%;
+  background:linear-gradient(135deg,var(--accent),#9b8fff);border:none;color:#fff;
+  font-size:28px;cursor:pointer;box-shadow:0 8px 32px rgba(124,106,247,.5);
+  display:flex;align-items:center;justify-content:center;z-index:200;transition:transform .2s}
+.fab:active{transform:scale(.93)}
+.fab.open{transform:rotate(45deg);background:linear-gradient(135deg,var(--red),#ff9a9a)}
+
+.toast{position:fixed;bottom:96px;left:50%;transform:translateX(-50%) translateY(20px);
+  background:var(--green);color:#000;padding:11px 22px;border-radius:30px;
+  font-size:13px;font-weight:600;opacity:0;transition:all .3s;z-index:300;white-space:nowrap}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-top">
+    <h1>💶 Isabelle</h1>
+    <div class="month-badge" id="monthBadge" onclick="toggleMonthPicker()">Janvier ▾</div>
+  </div>
+  <div class="month-selector" id="monthPicker"></div>
+</div>
+
+<div class="summary">
+  <div class="sum-card f"><div class="lbl">Fixes</div><div class="amt" id="sumF">0 €</div></div>
+  <div class="sum-card v"><div class="lbl">Variables</div><div class="amt" id="sumV">0 €</div></div>
+  <div class="sum-card t"><div class="lbl">Total</div><div class="amt" id="sumT">0 €</div></div>
+</div>
+
+<div class="rec-info" id="recInfo">
+  🔄 <span id="recInfoText">Chargement…</span>
+</div>
+
+<div class="tabs">
+  <div class="tab active" id="tabSaisie"      onclick="switchTab('saisie')">✏️ Saisie</div>
+  <div class="tab"        id="tabHistorique"  onclick="switchTab('historique')">📋 Historique</div>
+  <div class="tab"        id="tabRecurrents"  onclick="switchTab('recurrents')">🔄 Fixes auto</div>
+  <div class="tab"        id="tabExport"      onclick="switchTab('export')">📥 Export</div>
+</div>
+
+<div class="content">
+
+  <!-- SAISIE -->
+  <div id="panelSaisie">
+    <div class="add-form open" id="addForm">
+      <h3>Nouvelle dépense</h3>
+      <div class="form-group">
+        <label>Montant (€)</label>
+        <input type="number" id="inAmt" placeholder="0" inputmode="decimal" step="0.01" min="0"/>
+      </div>
+      <div class="form-group">
+        <label>Description</label>
+        <input type="text" id="inLabel" placeholder="ex : EDF, Intermarché…"/>
+      </div>
+      <div class="form-group">
+        <label>Catégorie</label>
+        <div class="cat-grid" id="catGrid"></div>
+      </div>
+      <div class="form-group">
+        <label>Date</label>
+        <input type="date" id="inDate"/>
+      </div>
+      <button class="btn-add" onclick="addEntry()">Ajouter la dépense</button>
+    </div>
+  </div>
+
+  <!-- HISTORIQUE -->
+  <div id="panelHistorique" style="display:none">
+    <div class="section-title">
+      <span id="histTitle">Dépenses — Janvier</span>
+      <span class="badge" id="histCount">0</span>
+    </div>
+    <div id="entriesList"></div>
+  </div>
+
+  <!-- RÉCURRENTS INFO -->
+  <div id="panelRecurrents" style="display:none">
+    <div class="rec-tab-card">
+      <div class="rec-tab-header">
+        <h3>🔄 Prélèvements automatiques</h3>
+        <p>Injectés automatiquement chaque mois dans l'application</p>
+      </div>
+      <div id="recTabList"></div>
+    </div>
+  </div>
+
+  <!-- EXPORT -->
+  <div id="panelExport" style="display:none">
+    <div class="export-section">
+      <div class="export-card">
+        <h3>📊 Exporter vers Excel</h3>
+        <p>Génère le fichier .xlsx complet — même format que le tableau de suivi 2026, avec toutes les données saisies.</p>
+        <button class="btn-export" onclick="exportExcel()">⬇️ Télécharger .xlsx</button>
+      </div>
+      <div class="export-card">
+        <h3>📈 Résumé global</h3>
+        <div id="globalPreview"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<button class="fab" id="fab" onclick="toggleFab()">+</button>
+<div class="toast" id="toast"></div>
+
+<script>
+// ═══════════════════════════════════════════════════
+// PRÉLÈVEMENTS RÉCURRENTS — identifiés sur les 4 relevés
+// ═══════════════════════════════════════════════════
+const RECURRING = [
+  // 4/4 mois — certifiés mensuels
+  { id:"pret",    icon:"🏠", label:"Prêt immobilier",          amount:401.23, cat:"pret",        freq:"monthly",    note:"vers le 7 du mois" },
+  { id:"eau",     icon:"💧", label:"Eau Régie CA GMVA",         amount:65.00,  cat:"eau",         freq:"monthly",    note:"vers le 10-12 du mois" },
+  { id:"pas",     icon:"🏛️", label:"Impôt sur le revenu (PAS)", amount:297.00, cat:"impots",      freq:"monthly",    note:"vers le 15-16 du mois" },
+  { id:"tf",      icon:"📋", label:"Taxe foncière DGFIP",       amount:608.00, cat:"tf",          freq:"monthly",    note:"vers le 16-17 du mois" },
+  { id:"isf",     icon:"💼", label:"ISF (provision 7 000€/an)", amount:583.33, cat:"isf",         freq:"monthly",    note:"provision mensuelle" },
+  { id:"sob",     icon:"📱", label:"Sobrio Pro",                amount:6.88,   cat:"abonnements", freq:"monthly",    note:"vers le 17 du mois" },
+  { id:"spo",     icon:"🎵", label:"Spotify",                   amount:21.24,  cat:"abonnements", freq:"monthly",    note:"vers le 27 du mois" },
+  // Énergie — alterné bimensuel (EDF et Engie en décalage)
+  { id:"engie",   icon:"⚡", label:"Engie",                     amount:476.87, cat:"energie",     freq:"bimonthly",  note:"mois impairs — jan/mar/mai…" },
+  { id:"edf",     icon:"⚡", label:"EDF",                       amount:492.00, cat:"energie",     freq:"bimonthly",  note:"mois impairs — jan/mar — montant variable" },
+  // Assurances lissées
+  { id:"assh",    icon:"🛡️", label:"Assurance habitation (lissée MMA)", amount:146.00, cat:"assurance", freq:"monthly", note:"prime annuelle 1 752€ ÷ 12" },
+  { id:"assauto", icon:"🚗", label:"Assurance auto MACIF (lissée)",     amount:56.72,  cat:"assurance", freq:"monthly", note:"prime annuelle 680€ ÷ 12" },
+  // Annuels ou irréguliers — info seulement
+  { id:"asssante",icon:"💊", label:"MACIF Santé (APIVIA)",     amount:281.67, cat:"assurance",   freq:"annual",     note:"jan uniquement — probablement mensuel" },
+  { id:"assvie",  icon:"💰", label:"MACIF Vie Retraite",        amount:150.00, cat:"assurance",   freq:"annual",     note:"avril — trimestriel probable" },
+];
+
+// Mois pairs (0-indexé) → Engie + EDF présents
+// Jan=0(impair), Fev=1(pair), Mar=2(impair), Avr=3(pair)
+// Pattern observé : EDF+Engie en jan et mars → mois impairs (index 0,2,4,6,8,10)
+function isOddMonth(monthIdx) { return monthIdx % 2 === 0; } // 0=jan pair → impair en calendrier
+
+// Prélèvements à injecter pour un mois donné
+function getRecurringForMonth(monthIdx) {
+  const always = ["pret","eau","pas","tf","isf","sob","spo","assh","assauto"];
+  const entries = [];
+  RECURRING.forEach(r => {
+    let inject = false;
+    if (always.includes(r.id)) inject = true;
+    if (r.id === "engie" && isOddMonth(monthIdx)) inject = true;
+    if (r.id === "edf"   && isOddMonth(monthIdx)) inject = true;
+    if (r.id === "asssante" && monthIdx === 0) inject = true; // jan only
+    if (r.id === "assvie"   && monthIdx % 3 === 0 && monthIdx !== 0) inject = true; // trim avr,jul,oct
+    if (inject) entries.push({ ...r, id: r.id+"_rec_"+monthIdx, prefilled:true, date:"" });
+  });
+  return entries;
+}
+
+// ═══════════════════════════════════════════════════
+// DONNÉES VARIABLES HISTORIQUES jan-avr (saisies manuelles)
+// ═══════════════════════════════════════════════════
+const HISTORY_MANUAL = {
+  "Janvier": [
+    {id:"j_trav1",   label:"Travaux Eurl bms – Devis 318",      amount:496.80, cat:"travaux",     date:"10/01", prefilled:true},
+    {id:"j_trav2",   label:"Travaux Eurl bms – Devis 319",      amount:545.36, cat:"travaux",     date:"10/01", prefilled:true},
+    {id:"j_crs",     label:"Alimentation (courses + Espagne)",  amount:322.11, cat:"courses",     date:"",      prefilled:true},
+    {id:"j_voy",     label:"Séjour Espagne + vols",             amount:811.83, cat:"voyages",     date:"",      prefilled:true},
+    {id:"j_shop",    label:"Shopping divers",                   amount:214.00, cat:"shopping",    date:"",      prefilled:true},
+    {id:"j_rest",    label:"Restaurants (ES + France)",         amount:83.67,  cat:"restau",      date:"",      prefilled:true},
+    {id:"j_div",     label:"Virement Jean – cadeaux Noël",      amount:47.00,  cat:"divers",      date:"08/01", prefilled:true},
+  ],
+  "Février": [
+    {id:"f_jard1",   label:"Jardins divers – Devis",            amount:1398.00,cat:"travaux",     date:"06/02", prefilled:true},
+    {id:"f_jard2",   label:"Jardins divers – Solde facture",    amount:1730.28,cat:"travaux",     date:"12/02", prefilled:true},
+    {id:"f_lm",      label:"Leroy Merlin",                      amount:19.98,  cat:"travaux",     date:"23/02", prefilled:true},
+    {id:"f_mma",     label:"MMA IARD – prime annuelle habitation",amount:1752.00,cat:"assurance", date:"24/02", prefilled:true},
+    {id:"f_sos",     label:"SOS Accessoire",                    amount:109.90, cat:"shopping",    date:"24/02", prefilled:true},
+    {id:"f_shop",    label:"Shopping (Amazon, Decathlon, La Lainière)", amount:99.50, cat:"shopping", date:"", prefilled:true},
+    {id:"f_rest",    label:"Zettle Ramonetou",                  amount:60.00,  cat:"restau",      date:"05/02", prefilled:true},
+    {id:"f_crs",     label:"Alimentation",                      amount:19.75,  cat:"courses",     date:"",      prefilled:true},
+    {id:"f_san",     label:"Floris Duffaud – séance",           amount:35.00,  cat:"sante",       date:"08/02", prefilled:true},
+    {id:"f_div",     label:"RCV Vannes",                        amount:7.00,   cat:"divers",      date:"13/02", prefilled:true},
+    {id:"f_carb",    label:"Carbutheix DAC (carburant)",        amount:34.99,  cat:"voyages",     date:"23/02", prefilled:true},
+  ],
+  "Mars": [
+    {id:"m_mou",     label:"Mougin – Facture grenier",           amount:1130.80,cat:"travaux",    date:"05/03", prefilled:true},
+    {id:"m_dpe",     label:"DPE diagnostic",                     amount:145.00, cat:"travaux",    date:"02/03", prefilled:true},
+    {id:"m_bms3",    label:"Eurl bms – Facture 348",             amount:1272.50,cat:"travaux",    date:"02/03", prefilled:true},
+    {id:"m_bms4",    label:"Eurl bms – Facture 349",             amount:959.20, cat:"travaux",    date:"02/03", prefilled:true},
+    {id:"m_port",    label:"Portail – Bertrand R.",               amount:132.00, cat:"travaux",   date:"03/03", prefilled:true},
+    {id:"m_nim",     label:"Nimbanet",                           amount:133.01, cat:"abonnements",date:"19/03", prefilled:true},
+    {id:"m_temu",    label:"Temu",                               amount:55.48,  cat:"shopping",   date:"12/03", prefilled:true},
+    {id:"m_rest",    label:"L'Evidence des Sens",               amount:54.10,  cat:"restau",     date:"28/02", prefilled:true},
+    {id:"m_div",     label:"Vinted (remboursement Jean)",        amount:240.00, cat:"divers",     date:"30/03", prefilled:true},
+    {id:"m_fb",      label:"Frais bancaires – Option Crypto Visa",amount:11.20, cat:"fraisbank",  date:"11/03", prefilled:true},
+  ],
+  "Avril": [
+    {id:"a_bert1",   label:"Couverture Bertin – Acompte 1",     amount:743.60, cat:"travaux",     date:"08/04", prefilled:true},
+    {id:"a_bert2",   label:"Couverture Bertin – Acompte 2",     amount:607.73, cat:"travaux",     date:"08/04", prefilled:true},
+    {id:"a_port",    label:"Portail carte – Bertrand",           amount:48.53,  cat:"travaux",    date:"24/04", prefilled:true},
+    {id:"a_man1",    label:"Manomano",                           amount:129.38, cat:"travaux",     date:"30/03", prefilled:true},
+    {id:"a_man2",    label:"Manomano",                           amount:588.90, cat:"travaux",     date:"25/04", prefilled:true},
+    {id:"a_macif",   label:"MACIF auto/habitation (prime annuelle)", amount:680.59, cat:"assurance", date:"10/04", prefilled:true},
+    {id:"a_macifv",  label:"MACIF Vie Retraite",                 amount:150.00, cat:"assurance",  date:"10/04", prefilled:true},
+    {id:"a_shop",    label:"Shopping (Amazon, Zoomalia, Temu…)", amount:243.42, cat:"shopping",   date:"",      prefilled:true},
+    {id:"a_crs",     label:"Alimentation",                       amount:43.10,  cat:"courses",    date:"",      prefilled:true},
+    {id:"a_voy",     label:"Transport / Booking hôtel",          amount:140.40, cat:"voyages",    date:"",      prefilled:true},
+  ],
+};
+
+const MONTHS = ["Janvier","Février","Mars","Avril","Mai","Juin",
+                "Juillet","Août","Septembre","Octobre","Novembre","Décembre"];
+
+const CATS = [
+  {id:"pret",        icon:"🏠", label:"Prêt immo",       type:"fix",  color:"#2244aa"},
+  {id:"energie",     icon:"⚡", label:"EDF / Engie",     type:"fix",  color:"#2244aa"},
+  {id:"eau",         icon:"💧", label:"Eau",             type:"fix",  color:"#2244aa"},
+  {id:"assurance",   icon:"🛡️", label:"Assurances",      type:"fix",  color:"#2244aa"},
+  {id:"impots",      icon:"🏛️", label:"Impôts / PAS",   type:"fix",  color:"#2244aa"},
+  {id:"tf",          icon:"📋", label:"Taxe foncière",   type:"fix",  color:"#2244aa"},
+  {id:"isf",         icon:"💼", label:"ISF",             type:"fix",  color:"#2244aa"},
+  {id:"abonnements", icon:"📱", label:"Abonnements",     type:"fix",  color:"#2244aa"},
+  {id:"travaux",     icon:"🔨", label:"Travaux",         type:"trav", color:"#8a3a10"},
+  {id:"courses",     icon:"🛒", label:"Alimentation",   type:"var",  color:"#5a3fb5"},
+  {id:"restau",      icon:"🍽️", label:"Restaurants",    type:"var",  color:"#5a3fb5"},
+  {id:"voyages",     icon:"✈️", label:"Voyages",         type:"var",  color:"#5a3fb5"},
+  {id:"shopping",    icon:"🛍️", label:"Shopping",       type:"var",  color:"#5a3fb5"},
+  {id:"sante",       icon:"🏥", label:"Santé",           type:"var",  color:"#5a3fb5"},
+  {id:"divers",      icon:"📦", label:"Divers",          type:"var",  color:"#5a3fb5"},
+  {id:"fraisbank",   icon:"🏦", label:"Frais bancaires", type:"var",  color:"#5a3fb5"},
+];
+
+const FIX_CATS = ["pret","energie","eau","assurance","impots","tf","isf","abonnements"];
+
+// ═══════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════
+let currentMonth = "Janvier";
+let selectedCat = null;
+let data = {};
+
+function initData() {
+  const saved = localStorage.getItem("isa_dep_v3");
+  if (saved) {
+    data = JSON.parse(saved);
+    MONTHS.forEach(m => { if (!data[m]) data[m] = []; });
+  } else {
+    data = {};
+    MONTHS.forEach((m, idx) => {
+      const recurring = getRecurringForMonth(idx);
+      const manual = HISTORY_MANUAL[m] || [];
+      data[m] = [...recurring, ...manual];
+    });
+    save();
+  }
+}
+
+function save() { localStorage.setItem("isa_dep_v3", JSON.stringify(data)); }
+
+// ═══════════════════════════════════════════════════
+// UI
+// ═══════════════════════════════════════════════════
+function buildMonthPicker() {
+  const el = document.getElementById("monthPicker");
+  el.innerHTML = MONTHS.map(m => {
+    const hasData = data[m]?.length > 0;
+    const isAct = m === currentMonth;
+    return `<div class="month-btn ${isAct?"active":""} ${hasData?"has-data":""}" onclick="selectMonth('${m}')">${m.slice(0,3)}</div>`;
+  }).join("");
+}
+
+function buildCatGrid() {
+  document.getElementById("catGrid").innerHTML = CATS.map(c =>
+    `<div class="cat-chip ${c.type}-type ${selectedCat===c.id?"selected":""}" onclick="selectCat('${c.id}')">
+      ${c.icon}<br><span style="font-size:11px">${c.label}</span>
+    </div>`
+  ).join("");
+}
+
+function updateSummary() {
+  const entries = data[currentMonth] || [];
+  const fixes = entries.filter(e => FIX_CATS.includes(e.cat)).reduce((s,e)=>s+e.amount,0);
+  const vars  = entries.filter(e => !FIX_CATS.includes(e.cat)).reduce((s,e)=>s+e.amount,0);
+  document.getElementById("sumF").textContent = Math.round(fixes).toLocaleString("fr-FR")+" €";
+  document.getElementById("sumV").textContent = Math.round(vars).toLocaleString("fr-FR")+" €";
+  document.getElementById("sumT").textContent = Math.round(fixes+vars).toLocaleString("fr-FR")+" €";
+  const recCount = (data[currentMonth]||[]).filter(e=>e.prefilled).length;
+  document.getElementById("recInfoText").textContent = `${recCount} prélèvements automatiques pré-injectés pour ${currentMonth}`;
+}
+
+function renderEntries() {
+  const entries = data[currentMonth] || [];
+  const list = document.getElementById("entriesList");
+  document.getElementById("histTitle").textContent = "Dépenses — "+currentMonth;
+  document.getElementById("histCount").textContent = entries.length;
+
+  if (!entries.length) {
+    list.innerHTML = `<div class="empty-state"><div class="icon">📭</div><p>Aucune dépense pour ${currentMonth}</p></div>`;
+    return;
+  }
+
+  // Séparer récurrents et manuels
+  const recs  = entries.filter(e => e.prefilled);
+  const manual = entries.filter(e => !e.prefilled);
+
+  let html = "";
+
+  // Groupe récurrents
+  if (recs.length) {
+    const totalRec = recs.reduce((s,e)=>s+e.amount,0);
+    html += `<div class="rec-group">
+      <div class="rec-group-header" id="recGrpHdr" onclick="toggleRecGroup()">
+        <span class="rec-label">🔄 Prélèvements automatiques</span>
+        <span class="rec-total">${Math.round(totalRec).toLocaleString("fr-FR")} €</span>
+        <span class="chevron open" id="recChevron">▾</span>
+      </div>
+      <div class="rec-group-body" id="recGrpBody">`;
+    recs.forEach((e, i) => {
+      const cat = CATS.find(c=>c.id===e.cat)||CATS[0];
+      const isFix = FIX_CATS.includes(e.cat);
+      const cls = isFix?"f":e.cat==="travaux"?"tr":"v";
+      const realIdx = entries.indexOf(e);
+      html += `<div class="entry-item">
+        <div class="entry-icon" style="background:${cat.color}33">${cat.icon}</div>
+        <div class="entry-info">
+          <div class="entry-label">${e.label}</div>
+          <div class="entry-cat">${cat.label} <span class="rec-badge">auto</span></div>
+        </div>
+        <div class="entry-amount ${cls}">${e.amount.toLocaleString("fr-FR")} €</div>
+        <button class="btn-del" onclick="deleteEntry(${realIdx})">✕</button>
+      </div>`;
+    });
+    html += `</div></div>`;
+  }
+
+  // Dépenses manuelles
+  if (manual.length) {
+    html += `<div class="section-title" style="margin-top:10px">Dépenses saisies <span class="badge">${manual.length}</span></div>
+    <div class="standalone-entries">`;
+    manual.forEach(e => {
+      const cat = CATS.find(c=>c.id===e.cat)||CATS[0];
+      const isFix = FIX_CATS.includes(e.cat);
+      const cls = isFix?"f":e.cat==="travaux"?"tr":"v";
+      const realIdx = entries.indexOf(e);
+      html += `<div class="entry-item">
+        <div class="entry-icon" style="background:${cat.color}33">${cat.icon}</div>
+        <div class="entry-info">
+          <div class="entry-label">${e.label}</div>
+          <div class="entry-cat">${cat.label}${e.date?" · "+e.date:""}</div>
+        </div>
+        <div class="entry-amount ${cls}">${e.amount.toLocaleString("fr-FR")} €</div>
+        <button class="btn-del" onclick="deleteEntry(${realIdx})">✕</button>
+      </div>`;
+    });
+    html += "</div>";
+  } else {
+    html += `<div class="empty-state" style="padding:24px 0">
+      <p style="font-size:13px;color:var(--muted)">Aucune dépense manuelle ce mois</p>
+    </div>`;
+  }
+
+  list.innerHTML = html;
+}
+
+function toggleRecGroup() {
+  const body = document.getElementById("recGrpBody");
+  const hdr  = document.getElementById("recGrpHdr");
+  const chev = document.getElementById("recChevron");
+  const isOpen = chev.classList.contains("open");
+  body.style.display = isOpen ? "none" : "block";
+  chev.classList.toggle("open", !isOpen);
+  hdr.classList.toggle("collapsed", isOpen);
+}
+
+function renderRecurrentsTab() {
+  const FREQ_LABELS = {monthly:"Mensuel",bimonthly:"Bimensuel",annual:"Annuel / ponctuel"};
+  const FREQ_CLASSES = {monthly:"monthly",bimonthly:"bimonthly",annual:"annual"};
+  const monthIdx = MONTHS.indexOf(currentMonth);
+  let html = "";
+  RECURRING.forEach(r => {
+    const injected = getRecurringForMonth(monthIdx).some(e => e.id.startsWith(r.id+"_rec"));
+    const isFix = FIX_CATS.includes(r.cat);
+    html += `<div class="rec-row">
+      <div class="rec-row-icon">${r.icon}</div>
+      <div class="rec-row-info">
+        <div class="rec-row-name">${r.label}
+          <span class="freq-badge ${FREQ_CLASSES[r.freq]}">${FREQ_LABELS[r.freq]}</span>
+        </div>
+        <div class="rec-row-detail">${r.note} ${injected?"· ✅ injecté ce mois":"· ⏭️ absent ce mois"}</div>
+      </div>
+      <div class="rec-row-amount ${isFix?"":"var"}">${r.amount.toLocaleString("fr-FR")} €</div>
+    </div>`;
+  });
+  document.getElementById("recTabList").innerHTML = html;
+}
+
+function renderGlobalPreview() {
+  let html = "";
+  let totAll=0,totFix=0,totVar=0,totTrav=0,n=0;
+  MONTHS.forEach(m => {
+    const e = data[m]||[];
+    if (!e.length) return;
+    n++;
+    const mt = e.reduce((s,x)=>s+x.amount,0);
+    const mf = e.filter(x=>FIX_CATS.includes(x.cat)).reduce((s,x)=>s+x.amount,0);
+    const mv = e.filter(x=>!FIX_CATS.includes(x.cat)).reduce((s,x)=>s+x.amount,0);
+    const mtr= e.filter(x=>x.cat==="travaux").reduce((s,x)=>s+x.amount,0);
+    totAll+=mt;totFix+=mf;totVar+=mv;totTrav+=mtr;
+    html+=`<div class="preview-row"><span class="lbl">${m}</span><span class="val">${Math.round(mt).toLocaleString("fr-FR")} €</span></div>`;
+  });
+  const nn=n||1;
+  html+=`<div class="preview-row" style="background:var(--surface2)"><span class="lbl" style="font-weight:600">Moyenne/mois</span><span class="val" style="color:var(--red)">${Math.round(totAll/nn).toLocaleString("fr-FR")} €</span></div>
+  <div class="preview-row"><span class="lbl">dont fixes moy.</span><span class="val" style="color:var(--blue)">${Math.round(totFix/nn).toLocaleString("fr-FR")} €</span></div>
+  <div class="preview-row"><span class="lbl">dont variables moy.</span><span class="val" style="color:var(--accent2)">${Math.round(totVar/nn).toLocaleString("fr-FR")} €</span></div>
+  <div class="preview-row"><span class="lbl">dont travaux moy.</span><span class="val" style="color:var(--red)">${Math.round(totTrav/nn).toLocaleString("fr-FR")} €</span></div>
+  <div class="preview-row"><span class="lbl">Hors travaux moy.</span><span class="val" style="color:var(--green)">${Math.round((totAll-totTrav)/nn).toLocaleString("fr-FR")} €</span></div>`;
+  document.getElementById("globalPreview").innerHTML = html;
+}
+
+// ═══════════════════════════════════════════════════
+// ACTIONS
+// ═══════════════════════════════════════════════════
+function selectMonth(m) {
+  currentMonth = m;
+  document.getElementById("monthBadge").textContent = m+" ▾";
+  document.getElementById("monthPicker").classList.remove("open");
+  buildMonthPicker();
+  updateSummary();
+  renderEntries();
+  renderRecurrentsTab();
+  renderGlobalPreview();
+}
+
+function toggleMonthPicker() {
+  document.getElementById("monthPicker").classList.toggle("open");
+}
+
+function selectCat(id) { selectedCat=id; buildCatGrid(); }
+
+function switchTab(tab) {
+  ["saisie","historique","recurrents","export"].forEach(t => {
+    const key = t.charAt(0).toUpperCase()+t.slice(1);
+    document.getElementById("tab"+key).classList.toggle("active", t===tab);
+    document.getElementById("panel"+key).style.display = t===tab?"block":"none";
+  });
+  if (tab==="historique") renderEntries();
+  if (tab==="recurrents") renderRecurrentsTab();
+  if (tab==="export")     renderGlobalPreview();
+}
+
+function toggleFab() {
+  const form = document.getElementById("addForm");
+  const fab  = document.getElementById("fab");
+  const isOpen = form.classList.contains("open");
+  // Switch to saisie tab if not there
+  if (document.getElementById("panelSaisie").style.display === "none") {
+    switchTab("saisie");
+  }
+  form.classList.toggle("open", !isOpen);
+  fab.classList.toggle("open", !isOpen);
+}
+
+function addEntry() {
+  const amount = parseFloat(document.getElementById("inAmt").value);
+  const label  = document.getElementById("inLabel").value.trim();
+  const date   = document.getElementById("inDate").value;
+  if (!amount||amount<=0) { toast("❌ Montant invalide"); return; }
+  if (!label)             { toast("❌ Ajoute une description"); return; }
+  if (!selectedCat)       { toast("❌ Choisis une catégorie"); return; }
+  data[currentMonth].push({ id:Date.now()+"", label, amount, cat:selectedCat, date, prefilled:false });
+  save();
+  document.getElementById("inAmt").value = "";
+  document.getElementById("inLabel").value = "";
+  selectedCat = null;
+  buildCatGrid();
+  updateSummary();
+  buildMonthPicker();
+  toast("✅ Dépense ajoutée !");
+}
+
+function deleteEntry(idx) {
+  data[currentMonth].splice(idx,1);
+  save();
+  updateSummary();
+  renderEntries();
+  buildMonthPicker();
+  toast("🗑️ Supprimée");
+}
+
+function toast(msg) {
+  const t = document.getElementById("toast");
+  t.textContent = msg;
+  t.classList.add("show");
+  setTimeout(()=>t.classList.remove("show"), 2000);
+}
+
+// ═══════════════════════════════════════════════════
+// EXPORT EXCEL
+// ═══════════════════════════════════════════════════
+function exportExcel() {
+  const wb = XLSX.utils.book_new();
+  const catRows = {
+    fixes: [
+      ["Prêt immobilier",               ["pret"]],
+      ["EDF / Engie",                   ["energie"]],
+      ["Eau",                           ["eau"]],
+      ["Assurances (toutes)",           ["assurance"]],
+      ["Impôt sur le revenu (PAS)",     ["impots"]],
+      ["Taxe foncière",                 ["tf"]],
+      ["ISF (provision 7 000€/an)",     ["isf"]],
+      ["Abonnements (Spotify, Sobrio…)",["abonnements"]],
+    ],
+    vars: [
+      ["Travaux (exceptionnel)",        ["travaux"]],
+      ["Alimentation / Courses",        ["courses"]],
+      ["Restaurants / Sorties",         ["restau"]],
+      ["Voyages / Séjours",             ["voyages"]],
+      ["Shopping / Achats en ligne",    ["shopping"]],
+      ["Santé / Bien-être",             ["sante"]],
+      ["Frais bancaires",               ["fraisbank"]],
+      ["Divers",                        ["divers"]],
+    ]
+  };
+
+  function total(month, cats) {
+    return (data[month]||[]).filter(e=>cats.includes(e.cat)).reduce((s,e)=>s+e.amount,0)||null;
+  }
+
+  const rows = [];
+  rows.push(["SUIVI DES DÉPENSES — ISABELLE GAMBART DE LIGNIÈRES — 2026",...Array(13).fill("")]);
+  rows.push(["Kinésiologue libérale · Vannes | ISF 583€/mois | MMA lissée | MACIF auto lissée",...Array(13).fill("")]);
+  rows.push(["CATÉGORIE",...MONTHS,"MOYENNE"]);
+
+  rows.push(["■ CHARGES FIXES",...Array(13).fill("")]);
+  let totF = Array(12).fill(0);
+  catRows.fixes.forEach(([lbl,cats])=>{
+    const vals = MONTHS.map(m=>{ const v=total(m,cats); if(v) totF[MONTHS.indexOf(m)]+=v; return v?Math.round(v):null; });
+    const filled=vals.filter(v=>v!==null);
+    rows.push([lbl,...vals, filled.length?Math.round(filled.reduce((a,b)=>a+b,0)/filled.length):null]);
+  });
+  rows.push(["TOTAL FIXES",...totF.map(v=>v||null), Math.round(totF.filter(v=>v>0).reduce((a,b)=>a+b,0)/totF.filter(v=>v>0).length||1)]);
+
+  rows.push([""]);
+  rows.push(["■ DÉPENSES VARIABLES",...Array(13).fill("")]);
+  let totV = Array(12).fill(0);
+  catRows.vars.forEach(([lbl,cats])=>{
+    const vals = MONTHS.map(m=>{ const v=total(m,cats); if(v) totV[MONTHS.indexOf(m)]+=v; return v?Math.round(v):null; });
+    const filled=vals.filter(v=>v!==null);
+    rows.push([lbl,...vals, filled.length?Math.round(filled.reduce((a,b)=>a+b,0)/filled.length):null]);
+  });
+  rows.push(["TOTAL VARIABLES",...totV.map(v=>v||null), Math.round(totV.filter(v=>v>0).reduce((a,b)=>a+b,0)/totV.filter(v=>v>0).length||1)]);
+
+  const totAll = totF.map((v,i)=>(v||0)+(totV[i]||0));
+  const travaux = MONTHS.map(m=>{ const v=total(m,["travaux"]); return v?Math.round(v):null; });
+  const hors = totAll.map((v,i)=>v-(travaux[i]||0));
+  rows.push(["TOTAL DÉPENSES",...totAll.map(v=>v||null), Math.round(totAll.filter(v=>v>0).reduce((a,b)=>a+b,0)/totAll.filter(v=>v>0).length||1)]);
+  rows.push(["  dont Travaux",...travaux, Math.round(travaux.filter(v=>v).reduce((a,b)=>a+b,0)/travaux.filter(v=>v).length||1)]);
+  rows.push(["  Hors Travaux",...hors.map(v=>v||null), Math.round(hors.filter(v=>v>0).reduce((a,b)=>a+b,0)/hors.filter(v=>v>0).length||1)]);
+
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  ws["!cols"] = [{wch:36},...Array(12).fill({wch:11}),{wch:13}];
+  ws["!merges"] = [{s:{r:0,c:0},e:{r:0,c:13}},{s:{r:1,c:0},e:{r:1,c:13}}];
+  XLSX.utils.book_append_sheet(wb, ws, "Dépenses 2026");
+
+  MONTHS.forEach(m => {
+    const entries = data[m]||[];
+    if (!entries.length) return;
+    const det = [["Date","Description","Catégorie","Type","Montant (€)","Auto"]];
+    entries.forEach(e => {
+      const cat = CATS.find(c=>c.id===e.cat);
+      det.push([e.date||"", e.label, cat?cat.label:e.cat, FIX_CATS.includes(e.cat)?"Fixe":"Variable", e.amount, e.prefilled?"✓":""]);
+    });
+    const wsd = XLSX.utils.aoa_to_sheet(det);
+    wsd["!cols"] = [{wch:12},{wch:42},{wch:24},{wch:10},{wch:14},{wch:6}];
+    XLSX.utils.book_append_sheet(wb, wsd, m.slice(0,3));
+  });
+
+  XLSX.writeFile(wb, "isabelle_depenses_2026.xlsx");
+  toast("📥 Export téléchargé !");
+}
+
+// ═══════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════
+initData();
+buildMonthPicker();
+buildCatGrid();
+updateSummary();
+document.getElementById("inDate").value = new Date().toISOString().split("T")[0];
+</script>
+</body>
+</html>
